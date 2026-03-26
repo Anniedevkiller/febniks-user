@@ -1,7 +1,7 @@
 "use client";
 import { Header } from "@/components/layout/Header";
 import { useAuth } from "@/context/AuthContext";
-import { User, MapPin, CreditCard, LogOut, ArrowRight, Save } from "lucide-react";
+import { User, MapPin, CreditCard, LogOut, ArrowRight, Save, Settings, AlertTriangle } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -37,6 +37,13 @@ export default function ProfilePage() {
   const handleLogout = () => {
     logout();
     router.push("/");
+  };
+
+  const handleDeleteAccount = () => {
+    if (window.confirm("Are you absolutely sure you want to delete your account? This action cannot be undone.")) {
+      toast.success("Account deletion request submitted.");
+      handleLogout();
+    }
   };
 
   return (
@@ -80,6 +87,12 @@ export default function ProfilePage() {
                 className={`flex items-center gap-3 px-4 py-3.5 rounded-xl font-bold transition-all text-left ${activeTab === "payment" ? "bg-red-50 text-[var(--color-primary)]" : "text-gray-600 hover:bg-gray-50"}`}
               >
                 <CreditCard className="w-5 h-5" /> Payments
+              </button>
+              <button 
+                onClick={() => setActiveTab("settings")}
+                className={`flex items-center gap-3 px-4 py-3.5 rounded-xl font-bold transition-all text-left ${activeTab === "settings" ? "bg-gray-100 text-gray-900" : "text-gray-600 hover:bg-gray-50"}`}
+              >
+                <Settings className="w-5 h-5" /> Settings
               </button>
               <button 
                 onClick={handleLogout}
@@ -155,6 +168,51 @@ export default function ProfilePage() {
                   </div>
                   <div className="p-6 border-2 border-dashed border-gray-200 rounded-2xl text-center text-[var(--color-primary)] font-bold hover:border-[var(--color-primary)] hover:bg-red-50/50 cursor-pointer transition-colors mt-4">
                     + Add New Payment Method
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* NEW SETTINGS TAB */}
+            {activeTab === "settings" && (
+              <div className="bg-white p-6 sm:p-10 rounded-3xl border border-gray-100 shadow-sm animate-in fade-in duration-300">
+                <h2 className="text-2xl font-black text-gray-900 tracking-tight mb-8">Account Settings</h2>
+                
+                <div className="space-y-6">
+                  {/* Preferences */}
+                  <div className="p-6 border border-gray-200 rounded-2xl bg-gray-50/50">
+                    <h3 className="text-lg font-bold text-gray-900 mb-2">Email Notifications</h3>
+                    <p className="text-sm text-gray-500 mb-4 font-medium max-w-md">Receive timely updates about your ongoing orders, deliveries, and exclusive promotional offers.</p>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input type="checkbox" className="sr-only peer" defaultChecked />
+                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[var(--color-primary)]"></div>
+                      <span className="ml-3 text-sm font-bold text-gray-900">Toggle Notifications</span>
+                    </label>
+                  </div>
+                  
+                  {/* Support link */}
+                  <div className="p-6 border border-gray-200 rounded-2xl hover:border-gray-300 transition-colors">
+                    <h3 className="text-lg font-bold text-gray-900 mb-2">Need Help?</h3>
+                    <p className="text-sm text-gray-500 mb-4 font-medium">Chat with our customer service team to resolve any issues.</p>
+                    <Link href="/support" className="inline-flex items-center justify-center px-6 py-2.5 bg-gray-900 text-white font-bold rounded-xl hover:bg-black transition-colors shadow-sm">
+                      Contact Support
+                    </Link>
+                  </div>
+
+                  {/* Danger Zone */}
+                  <div className="p-6 border border-red-200 bg-red-50/50 rounded-2xl mt-8">
+                    <h3 className="text-lg font-black text-red-700 flex items-center gap-2 mb-2">
+                      <AlertTriangle className="w-5 h-5" /> Danger Zone
+                    </h3>
+                    <p className="text-sm text-red-600/80 font-semibold mb-6 max-w-md">
+                      Permanently delete your account and remove all of your data from our servers. Once processed, there is absolutely no going back.
+                    </p>
+                    <button 
+                      onClick={handleDeleteAccount}
+                      className="px-6 py-3 bg-white border-2 border-red-200 text-red-600 font-black rounded-xl hover:bg-red-600 hover:text-white hover:border-red-600 transition-colors shadow-sm active:scale-95"
+                    >
+                      Delete Account
+                    </button>
                   </div>
                 </div>
               </div>

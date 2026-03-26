@@ -1,5 +1,7 @@
 "use client";
 import { useState } from "react";
+import Image from "next/image";
+import Link from "next/link";
 import { Header } from "@/components/layout/Header";
 import { FoodCard } from "@/components/menu/FoodCard";
 import { FoodModal } from "@/components/menu/FoodModal";
@@ -37,7 +39,7 @@ export default function Home() {
     : FOOD_ITEMS.filter(f => f.category === activeCategory);
 
   return (
-    <div className="min-h-screen bg-white flex flex-col relative font-sans text-gray-900">
+    <div className="min-h-screen bg-[#FFFDF7] flex flex-col relative font-sans text-gray-900">
       <Header onOpenCart={() => setIsCartOpen(true)} />
       
       {/* Mobile Sticky Search - Appears only on small screens */}
@@ -58,31 +60,43 @@ export default function Home() {
 
       <main className="flex-grow">
         
-        {/* Modern Promotional Hero Container */}
-        <div className="container mx-auto px-4 max-w-[1400px] mt-4 md:mt-8 mb-8 md:mb-12">
-          {isAuthenticated && (
-            <h1 className="text-2xl md:text-3xl font-black mb-4 tracking-tight">
-              Good afternoon, <span className="text-[var(--color-primary)]">{user?.name.split(" ")[0]}</span> 👋
-            </h1>
-          )}
-          
-          <div className="relative bg-gray-900 rounded-[2rem] text-white overflow-hidden py-16 md:py-20 px-8 flex items-center justify-between min-h-[160px] shadow-lg shadow-black/10">
-            <div className="absolute inset-0 bg-gradient-to-r from-red-600 via-red-800 to-gray-900 opacity-90" />
-            <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1544025162-83b92ee9fbce?q=80&w=1200')] mix-blend-overlay opacity-25 object-cover object-center" />
-            
-            <div className="relative z-10 max-w-lg">
-              <span className="inline-flex items-center gap-1 bg-white/20 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider mb-4 border border-white/20 backdrop-blur-sm">
-                <Star className="w-3 h-3 text-yellow-400" fill="currentColor" /> FEBNIKS EXCLUSIVE
+        {/* Glovo-Style Full Bleed Hero */}
+        <div className="bg-[#FFDB00] w-full overflow-hidden relative border-b border-yellow-500/20">
+          <div className="container mx-auto px-4 max-w-[1400px] flex flex-col md:flex-row items-center justify-between py-12 md:py-24 lg:py-28 relative z-10 min-h-[500px] md:min-h-[600px]">
+            {/* Left side: Text Content */}
+            <div className="w-full md:w-1/2 flex flex-col justify-center items-start z-20">
+              {isAuthenticated && (
+                <span className="inline-block bg-white/50 backdrop-blur-md px-4 py-1.5 rounded-full text-sm font-bold text-gray-900 mb-6 drop-shadow-sm border border-white/40">
+                  Welcome back, {user?.name.split(" ")[0]} 👋
+                </span>
+              )}
+              
+              <span className="inline-flex items-center gap-1.5 bg-gray-900 text-white px-4 py-2 rounded-full text-[11px] font-black tracking-widest uppercase mb-5 shadow-sm">
+                <Star className="w-3.5 h-3.5 text-[#FFDB00]" fill="currentColor" /> Febniks Kitchen Exclusive
               </span>
-              <h2 className="text-3xl md:text-5xl font-black mb-3 leading-tight tracking-tighter">
+              <h1 className="text-5xl md:text-6xl lg:text-[5rem] font-black mb-6 leading-[1.05] tracking-tighter text-gray-900">
                 Farm to Table <br /> Freshness
-              </h2>
-              <p className="text-sm md:text-base font-medium text-red-50/90 mb-6 drop-shadow-sm max-w-sm">
-                Order our signature fresh fish dishes and enjoy free delivery on your first purchase!
+              </h1>
+              <p className="text-base md:text-lg lg:text-xl font-bold text-gray-800/90 mb-8 max-w-sm leading-relaxed">
+                Order Our Signature Dried Magala Dishes and enjoy free delivery on your first purchase!
               </p>
-              <button className="bg-white text-gray-900 px-6 py-3 rounded-full font-black text-sm shadow-xl active:scale-95 transition-all">
-                Order Now
-              </button>
+              <Link href="/menu" className="bg-gray-900 text-white px-10 py-4 rounded-full font-black text-lg shadow-[0_8px_30px_rgb(0,0,0,0.2)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.3)] active:scale-95 transition-all w-max hover:bg-black text-center tracking-wide">
+                Menu
+              </Link>
+            </div>
+            
+            {/* Right side: Image Background */}
+            <div className="absolute top-0 right-0 w-full md:w-3/5 h-[300px] md:h-full z-0 opacity-90 md:opacity-100 mt-auto bottom-0 md:mt-0">
+               {/* Mask gradients to seamlessly fade the image background into the hero yellow */}
+               <div className="absolute inset-0 bg-gradient-to-r from-[#FFDB00] via-[#FFDB00]/60 to-transparent z-10 hidden md:block" />
+               <div className="absolute inset-0 bg-gradient-to-t from-[#FFDB00] via-[#FFDB00]/20 to-transparent z-10 md:hidden" />
+               <Image 
+                 src="/hero-food.jpg" 
+                 alt="Signature Dried Magala"
+                 fill
+                 className="object-cover object-left-top md:object-center"
+                 priority
+               />
             </div>
           </div>
         </div>
@@ -96,11 +110,11 @@ export default function Home() {
                 onClick={() => setActiveCategory(cat.name)}
                 className={`flex items-center gap-2.5 px-5 py-3 rounded-full font-bold whitespace-nowrap transition-all duration-300 snap-center shrink-0 ${
                   activeCategory === cat.name 
-                    ? "bg-gray-900 text-white shadow-[0_4px_15px_rgba(0,0,0,0.15)] scale-100" 
+                    ? "bg-[var(--color-accent)] text-gray-900 shadow-[0_4px_15px_rgba(255,183,3,0.3)] scale-100" 
                     : "bg-gray-100 text-gray-700 hover:bg-gray-200 border-none scale-100 active:scale-95"
                 }`}
               >
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-lg shadow-xs ${activeCategory === cat.name ? 'bg-white/20' : 'bg-white'}`}>
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-lg shadow-xs ${activeCategory === cat.name ? 'bg-white/40' : 'bg-white'}`}>
                   {cat.icon}
                 </div>
                 <span>{cat.name}</span>
