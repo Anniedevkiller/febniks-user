@@ -28,9 +28,6 @@ export function Header({ onOpenCart }: HeaderProps) {
         <div className="flex justify-between items-center gap-4 lg:gap-8">
           
           <div className="flex items-center gap-6 shrink-0">
-            <button className="lg:hidden p-2 -ml-2 text-gray-900 hover:bg-gray-100 rounded-full transition-colors active:scale-95">
-              <Menu className="w-6 h-6" />
-            </button>
             <Link href="/" className="text-2xl font-black tracking-tighter text-[var(--color-primary)]">
               FEBNIKS
             </Link>
