@@ -2,12 +2,7 @@
 import { X, Minus, Plus, Trash2, ArrowRight } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { useState } from "react";
-
-const DUMMY_CART = [
-  { id: "1", name: "Premium Grilled Croaker", price: 15000, quantity: 1, image: "https://images.unsplash.com/photo-1544025162-83b92ee9fbce?q=80&w=800" },
-  { id: "2", name: "Spicy Catfish Pepper Soup", price: 8500, quantity: 2, image: "https://images.unsplash.com/photo-1544025162-83b92ee9fbce?q=80&w=800" },
-];
+import { useCart } from "@/context/CartContext";
 
 interface CartDrawerProps {
   isOpen: boolean;
@@ -15,9 +10,7 @@ interface CartDrawerProps {
 }
 
 export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
-  const [items, setItems] = useState(DUMMY_CART);
-
-  const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const { items, updateQuantity, removeFromCart, subtotal } = useCart();
 
   if (!isOpen) return null;
 
@@ -56,7 +49,10 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
                 <div className="flex flex-col flex-grow py-1">
                   <div className="flex justify-between items-start gap-2">
                     <h3 className="font-bold text-sm text-gray-900 line-clamp-2 leading-tight">{item.name}</h3>
-                    <button className="text-gray-400 hover:text-red-500 transition-colors p-1 -mr-1 -mt-1 active:scale-90">
+                    <button 
+                      onClick={() => removeFromCart(item.id)}
+                      className="text-gray-400 hover:text-red-500 transition-colors p-1 -mr-1 -mt-1 active:scale-90"
+                    >
                       <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
@@ -64,11 +60,17 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
                   
                   <div className="mt-auto flex items-center justify-between">
                     <div className="flex items-center bg-gray-50 border border-gray-200 rounded-full">
-                      <button className="w-7 h-7 flex items-center justify-center rounded-full text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-colors">
+                      <button 
+                        onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                        className="w-7 h-7 flex items-center justify-center rounded-full text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-colors"
+                      >
                         <Minus className="w-3 h-3" />
                       </button>
                       <span className="w-8 text-center font-bold text-sm">{item.quantity}</span>
-                      <button className="w-7 h-7 flex items-center justify-center rounded-full text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-colors">
+                      <button 
+                        onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                        className="w-7 h-7 flex items-center justify-center rounded-full text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-colors"
+                      >
                         <Plus className="w-3 h-3" />
                       </button>
                     </div>

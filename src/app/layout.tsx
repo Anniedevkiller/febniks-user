@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Outfit } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/context/AuthContext";
+import { CartProvider } from "@/context/CartContext";
 import { Toaster } from "react-hot-toast";
 
 const outfit = Outfit({
@@ -23,29 +24,31 @@ export default function RootLayout({
     <html lang="en">
       <body className={`${outfit.variable} font-sans antialiased text-foreground bg-background min-h-screen flex flex-col`}>
         <AuthProvider>
-          {children}
-          <Toaster 
-            position="top-center" 
-            toastOptions={{
-              style: {
-                background: '#333',
-                color: '#fff',
-                borderRadius: '16px',
-                fontWeight: 'bold',
-              },
-              success: {
+          <CartProvider>
+            {children}
+            <Toaster 
+              position="top-center" 
+              toastOptions={{
                 style: {
-                  background: '#ECFDF5',
-                  color: '#065F46',
-                  border: '1px solid #10B981',
+                  background: '#333',
+                  color: '#fff',
+                  borderRadius: '16px',
+                  fontWeight: 'bold',
                 },
-                iconTheme: {
-                  primary: '#10B981',
-                  secondary: '#fff',
+                success: {
+                  style: {
+                    background: '#ECFDF5',
+                    color: '#065F46',
+                    border: '1px solid #10B981',
+                  },
+                  iconTheme: {
+                    primary: '#10B981',
+                    secondary: '#fff',
+                  },
                 },
-              },
-            }} 
-          />
+              }} 
+            />
+          </CartProvider>
         </AuthProvider>
       </body>
     </html>

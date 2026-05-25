@@ -4,20 +4,24 @@ import { Header } from "@/components/layout/Header";
 import { FoodCard } from "@/components/menu/FoodCard";
 import { FoodModal } from "@/components/menu/FoodModal";
 import { CartDrawer } from "@/components/cart/CartDrawer";
+import { useCart } from "@/context/CartContext";
 import toast from "react-hot-toast";
 import { Filter, Search } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 
-// Using the same dummy data
+// Categories including local special additions
 const CATEGORIES = ["All", "Grilled", "Pepper Soup", "Fried", "Specials", "Drinks", "Sides"];
+
+// Real premium products mapped with uploaded assets
 const FOOD_ITEMS = [
-  { id: "1", name: "Premium Grilled Croaker", category: "Grilled", price: 15000, description: "Freshly roasted croaker fish with signature Febniks spices.", image: "https://images.unsplash.com/photo-1544025162-83b92ee9fbce?q=80&w=800" },
-  { id: "2", name: "Spicy Catfish Pepper Soup", category: "Pepper Soup", price: 8500, description: "Hot, spicy, and deeply aromatic catfish pepper soup.", image: "https://images.unsplash.com/photo-1544025162-83b92ee9fbce?q=80&w=800" },
-  { id: "3", name: "Crispy Fried Tilapia", category: "Fried", price: 12000, description: "Golden crispy fried tilapia fish, garnished with fresh onions.", image: "https://images.unsplash.com/photo-1544025162-83b92ee9fbce?q=80&w=800" },
-  { id: "4", name: "Special Catfish Barbecue", category: "Specials", price: 18000, description: "Whole roasted catfish smothered in our secret barbecue glaze.", image: "https://images.unsplash.com/photo-1544025162-83b92ee9fbce?q=80&w=800" },
-  { id: "5", name: "Jumbo Prawn Skewers", category: "Specials", price: 21000, description: "Char-grilled jumbo prawns marinated in garlic butter.", image: "https://images.unsplash.com/photo-1544025162-83b92ee9fbce?q=80&w=800" },
-  { id: "6", name: "Fish & Chips Combo", category: "Fried", price: 11500, description: "Crispy battered fish fillet fingers served with spicy potato wedges.", image: "https://images.unsplash.com/photo-1544025162-83b92ee9fbce?q=80&w=800" },
-  { id: "7", name: "Chilled Zobo Drink", category: "Drinks", price: 2000, description: "Refreshing homemade hibiscus drink with pineapple and ginger.", image: "https://images.unsplash.com/photo-1544025162-83b92ee9fbce?q=80&w=800" },
-  { id: "8", name: "Fried Plantain (Dodo)", category: "Sides", price: 1500, description: "Extra portion of sweet, golden fried plantains.", image: "https://images.unsplash.com/photo-1544025162-83b92ee9fbce?q=80&w=800" },
+  { id: "1", name: "Premium Grilled Croaker", category: "Grilled", price: 15000, description: "Freshly roasted croaker fish with signature Febniks spices.", image: "/croaker-dish.jpg" },
+  { id: "2", name: "Spicy Catfish Pepper Soup", category: "Pepper Soup", price: 8500, description: "Hot, deeply aromatic catfish pepper soup infused with traditional herbs.", image: "/catfish-dish.jpg" },
+  { id: "3", name: "Gourmet Peppered Mangala Bowl", category: "Specials", price: 18000, description: "Dried Mangala fish smothered in signature hot peppers, garnished with cucumbers.", image: "/spicy-dish-watermark.jpg" },
+  { id: "4", name: "Premium Dried Mangala Pack", category: "Specials", price: 12000, description: "Hygienically packaged premium dried Mangala fish sourced directly from Abuja smokehouses.", image: "/mangala-pack.jpg" },
+  { id: "5", name: "Whole Smoked Catfish Glaze", category: "Grilled", price: 19500, description: "Whole roasted catfish glazed with our secret spice recipe, ideal for couples.", image: "/catfish-dish.jpg" },
+  { id: "6", name: "Spicy Plated Tilapia Combo", category: "Fried", price: 14500, description: "Crispy fried tilapia fish fingers with spicy potatoes and chef's signature dips.", image: "/croaker-dish.jpg" },
+  { id: "7", name: "Chilled Zobo Drink", category: "Drinks", price: 2000, description: "Refreshing homemade hibiscus drink with pineapple and ginger.", image: "/spicy-dish-watermark.jpg" },
+  { id: "8", name: "Fried Plantain (Dodo)", category: "Sides", price: 1500, description: "Extra portion of sweet, golden fried plantains.", image: "/croaker-dish.jpg" },
 ];
 
 export default function MenuPage() {
@@ -25,6 +29,7 @@ export default function MenuPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedItem, setSelectedItem] = useState<any>(null);
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const { addToCart, triggerFlyToCart } = useCart();
 
   const filteredItems = FOOD_ITEMS.filter(item => {
     const matchesCategory = activeCategory === "All" || item.category === activeCategory;
@@ -62,7 +67,7 @@ export default function MenuPage() {
         </div>
 
         {/* Categories Pill Bar */}
-        <div className="flex gap-2.5 overflow-x-auto pb-6 mb-4 snap-x hide-scrollbar mask-gradient-right">
+        <div className="flex gap-2.5 overflow-x-auto pb-6 mb-4 snap-x hide-scrollbar">
           {CATEGORIES.map(cat => (
             <button
               key={cat}
@@ -84,9 +89,19 @@ export default function MenuPage() {
             {filteredItems.map((item) => (
               <FoodCard 
                 key={item.id}
-                {...item}
+                id={item.id}
+                name={item.name}
+                description={item.description}
+                price={item.price}
+                image={item.image}
                 onClick={() => setSelectedItem(item)}
-                onAdd={() => toast.success(`Added ${item.name} to order.`)}
+                onAdd={(e) => {
+                  if (e) {
+                    triggerFlyToCart(item.image, e.clientX, e.clientY);
+                  }
+                  addToCart({ id: item.id, name: item.name, price: item.price, image: item.image, description: item.description });
+                  toast.success(`Added ${item.name} to order.`);
+                }}
               />
             ))}
           </div>
@@ -98,15 +113,23 @@ export default function MenuPage() {
         )}
       </main>
 
-      <FoodModal 
-        isOpen={!!selectedItem}
-        item={selectedItem}
-        onClose={() => setSelectedItem(null)}
-        onAdd={(item, quantity) => {
-          toast.success(`Added ${quantity} ${item.name}(s) to order.`);
-          setSelectedItem(null);
-        }}
-      />
+      <AnimatePresence>
+        {selectedItem && (
+          <FoodModal 
+            isOpen={true}
+            item={selectedItem}
+            onClose={() => setSelectedItem(null)}
+            onAdd={(item, quantity, event) => {
+              if (event) {
+                triggerFlyToCart(item.image, event.clientX, event.clientY);
+              }
+              addToCart({ id: item.id, name: item.name, price: item.price, image: item.image, description: item.description }, quantity);
+              toast.success(`Added ${quantity} ${item.name}(s) to order.`);
+              setSelectedItem(null);
+            }}
+          />
+        )}
+      </AnimatePresence>
       
       <CartDrawer isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} />
     </div>

@@ -2,6 +2,7 @@
 import { X, Lock, CheckCircle2 } from "lucide-react";
 import { useState, useEffect } from "react";
 import toast from "react-hot-toast";
+import { motion } from "framer-motion";
 
 interface PaymentModalProps {
   isOpen: boolean;
@@ -90,9 +91,40 @@ export function PaymentModal({ isOpen, onClose, amount, email, onSuccess }: Paym
 
           {step === "processing" && (
             <div className="py-12 flex flex-col items-center justify-center text-center">
-              <div className="relative mb-8">
-                <div className="w-14 h-14 border-4 border-gray-100 border-t-[#0ba4db] rounded-full animate-spin" />
-                <Lock className="w-5 h-5 text-[#0ba4db] absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
+              <div className="relative w-32 h-32 flex items-center justify-center mb-4">
+                <svg viewBox="0 0 100 100" className="w-20 h-20">
+                  <motion.ellipse
+                    cx="50"
+                    cy="32"
+                    rx="15"
+                    ry="6"
+                    fill="#FFB703"
+                    animate={{
+                      y: [0, -35, 0],
+                      rotateX: [0, 180, 360],
+                      scaleY: [1, 0.7, 1]
+                    }}
+                    transition={{
+                      duration: 1.2,
+                      repeat: Infinity,
+                      ease: "easeInOut"
+                    }}
+                  />
+                  <motion.g
+                    animate={{
+                      y: [0, 4, 0],
+                      rotate: [0, -5, 5, 0]
+                    }}
+                    transition={{
+                      duration: 1.2,
+                      repeat: Infinity,
+                      ease: "easeInOut"
+                    }}
+                  >
+                    <path d="M25 50 C25 62, 35 70, 50 70 C65 70, 75 62, 75 50 Z" fill="#2C3E50" />
+                    <path d="M73 50 L95 42 L93 38 L72 47 Z" fill="#1A252F" />
+                  </motion.g>
+                </svg>
               </div>
               <h3 className="font-black text-xl text-gray-900 mb-2">Authenticating</h3>
               <p className="text-gray-500 font-medium tracking-wide">Please approve the transaction...</p>
