@@ -1,431 +1,408 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Header } from "@/components/layout/Header";
 import { FoodCard } from "@/components/menu/FoodCard";
-import { FoodModal } from "@/components/menu/FoodModal";
+import { FoodModal, FoodItem } from "@/components/menu/FoodModal";
 import { CartDrawer } from "@/components/cart/CartDrawer";
-import { ShoppingCart, Star, MapPin, Search } from "lucide-react";
+import {
+  ArrowRight,
+  QrCode,
+  UtensilsCrossed,
+  Bike,
+  Fish,
+  ShieldCheck,
+  Lock,
+  Sparkles,
+  RefreshCw,
+  AlertCircle,
+  Phone,
+  Mail,
+  MapPin,
+} from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useCart } from "@/context/CartContext";
+import { fetchFeaturedMeals, getMealImageUrl, Meal } from "@/lib/supabase/meals";
 import toast from "react-hot-toast";
 import { motion, AnimatePresence } from "framer-motion";
-import { DeconstructedMangala } from "@/components/home/DeconstructedMangala";
 
-// Categories mapping
-const CATEGORIES = [
-  { name: "All", icon: "🍽️" },
-  { name: "Grilled", icon: "🔥" },
-  { name: "Pepper Soup", icon: "🥣" },
-  { name: "Fried", icon: "🍤" },
-  { name: "Specials", icon: "⭐" },
-];
-
-// Food items using uploaded premium assets
-const FOOD_ITEMS = [
-  { id: "1", name: "Premium Grilled Croaker", category: "Grilled", price: 15000, description: "Freshly roasted croaker fish with signature Febniks spices, served with plantains and special pepper sauce.", image: "/croaker-dish.jpg" },
-  { id: "2", name: "Spicy Catfish Pepper Soup", category: "Pepper Soup", price: 8500, description: "Hot, deeply aromatic catfish pepper soup infused with traditional herbs.", image: "/catfish-dish.jpg" },
-  { id: "3", name: "Gourmet Peppered Mangala Bowl", category: "Specials", price: 18000, description: "Dried Mangala fish smothered in signature hot peppers, garnished with fresh cucumbers.", image: "/spicy-dish-watermark.jpg" },
-  { id: "4", name: "Premium Dried Mangala Pack", category: "Specials", price: 12000, description: "Hygienically packaged premium dried Mangala fish sourced directly from Abuja smokehouses.", image: "/mangala-pack.jpg" },
-  { id: "5", name: "Whole Smoked Catfish Glaze", category: "Grilled", price: 19500, description: "Whole roasted catfish glazed with our secret spice recipe, ideal for couples.", image: "/catfish-dish.jpg" },
-  { id: "6", name: "Spicy Plated Tilapia Combo", category: "Fried", price: 14500, description: "Crispy fried tilapia fish fingers with spicy potatoes and chef's signature dips.", image: "/croaker-dish.jpg" },
-];
-
-export default function Home() {
-  const [activeCategory, setActiveCategory] = useState("All");
-  const [selectedItem, setSelectedItem] = useState<any>(null);
-  const [isCartOpen, setIsCartOpen] = useState(false);
-  const [isIntroLoading, setIsIntroLoading] = useState(true);
-  const [isMenuLoading, setIsMenuLoading] = useState(false);
+export default function LandingPage() {
   const { user, isAuthenticated } = useAuth();
-  const { addToCart, totalItemsCount, triggerFlyToCart } = useCart();
+  const { addToCart, triggerFlyToCart } = useCart();
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsIntroLoading(false);
-    }, 1500);
-    return () => clearTimeout(timer);
+  const [featuredMeals, setFeaturedMeals] = useState<Meal[]>([]);
+  const [isLoadingMeals, setIsLoadingMeals] = useState(true);
+  const [mealsError, setMealsError] = useState<string | null>(null);
+  const [selectedItem, setSelectedItem] = useState<FoodItem | null>(null);
+  const [isCartOpen, setIsCartOpen] = useState(false);
+
+  const loadFeatured = useCallback(async () => {
+    setIsLoadingMeals(true);
+    setMealsError(null);
+    try {
+      const data = await fetchFeaturedMeals(4);
+      setFeaturedMeals(data);
+    } catch (err: any) {
+      setMealsError(err?.message || "Failed to load featured meals from Supabase.");
+    } finally {
+      setIsLoadingMeals(false);
+    }
   }, []);
 
-  const handleCategoryChange = (catName: string) => {
-    if (activeCategory === catName) return;
-    setActiveCategory(catName);
-    setIsMenuLoading(true);
-    const timer = setTimeout(() => {
-      setIsMenuLoading(false);
-    }, 600);
-  };
+  useEffect(() => {
+    loadFeatured();
+  }, [loadFeatured]);
 
-  const filteredItems = activeCategory === "All" 
-    ? FOOD_ITEMS 
-    : FOOD_ITEMS.filter(f => f.category === activeCategory);
+  const toFoodItem = (meal: Meal): FoodItem => ({
+    id: meal.id,
+    name: meal.name,
+    description:
+      meal.description ||
+      "Freshly prepared farm-to-table fish delicacy with signature Febniks spices.",
+    price: Number(meal.price || 0),
+    image: getMealImageUrl(meal.image_url),
+    category: meal.categories?.name || "Fish Meals",
+  });
 
   return (
-    <div className="min-h-screen bg-[#FCFAF6] flex flex-col relative font-sans text-gray-900">
-      {/* 5. Custom Flipping Pan Loader */}
-      <AnimatePresence>
-        {isIntroLoading && (
-          <motion.div
-            initial={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.5, ease: "easeInOut" }}
-            className="fixed inset-0 bg-[#FCFAF6] z-[99999] flex flex-col items-center justify-center"
-          >
-            <div className="flex flex-col items-center">
-              <div className="relative w-32 h-32 flex items-center justify-center">
-                <svg viewBox="0 0 100 100" className="w-24 h-24">
-                  {/* Pancake/fish being flipped */}
-                  <motion.ellipse
-                    cx="50"
-                    cy="32"
-                    rx="15"
-                    ry="6"
-                    fill="#FFB703"
-                    animate={{
-                      y: [0, -35, 0],
-                      rotateX: [0, 180, 360],
-                      scaleY: [1, 0.7, 1]
-                    }}
-                    transition={{
-                      duration: 1.2,
-                      repeat: Infinity,
-                      ease: "easeInOut"
-                    }}
-                  />
-                  {/* Pan */}
-                  <motion.g
-                    animate={{
-                      y: [0, 4, 0],
-                      rotate: [0, -5, 5, 0]
-                    }}
-                    transition={{
-                      duration: 1.2,
-                      repeat: Infinity,
-                      ease: "easeInOut"
-                    }}
-                  >
-                    {/* Pan Body */}
-                    <path d="M25 50 C25 62, 35 70, 50 70 C65 70, 75 62, 75 50 Z" fill="#2C3E50" />
-                    {/* Pan Handle */}
-                    <path d="M73 50 L95 42 L93 38 L72 47 Z" fill="#1A252F" />
-                  </motion.g>
-                </svg>
-              </div>
-              <motion.h3 
-                animate={{ opacity: [0.4, 1, 0.4] }}
-                transition={{ duration: 1.2, repeat: Infinity, ease: "easeInOut" }}
-                className="text-sm font-black text-gray-800 tracking-widest uppercase mt-4"
-              >
-                Flipping Abuja Delicacies...
-              </motion.h3>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
+    <div className="min-h-screen bg-[#FCFAF6] flex flex-col font-sans text-gray-900">
       <Header onOpenCart={() => setIsCartOpen(true)} />
-      
-      {/* Mobile Sticky Location Banner */}
-      <div className="md:hidden pt-4 pb-2 px-4 sticky top-16 bg-white z-40 border-b border-gray-100 flex items-center justify-between shadow-[0_4px_10px_rgba(0,0,0,0.02)]">
-        <button className="flex items-center gap-1.5 px-3 py-2 bg-gray-100/80 rounded-full max-w-[170px]">
-          <MapPin className="w-3.5 h-3.5 text-red-500 shrink-0" />
-          <span className="text-xs font-bold text-gray-900 truncate">Wuse II, Abuja</span>
-        </button>
-        <div className="flex-grow ml-3 relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-          <input 
-            type="text" 
-            placeholder="Search menu..." 
-            className="w-full bg-gray-100 hover:bg-gray-200 focus:bg-gray-50 border border-transparent transition-all rounded-full py-2.5 pl-9 pr-4 text-xs font-semibold outline-none"
-          />
-        </div>
-      </div>
 
       <main className="flex-grow">
-        
-        {/* Responsive Premium Hero with Entrance Timelines & Floating Ingredients */}
-        <div className="bg-[#FAF8F5] w-full overflow-hidden border-b border-gray-100 relative">
-          
-          {/* Subtle Floating Ingredients Background */}
-          <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden">
-            {/* Chili Pepper 🌶️ */}
-            <motion.div
-              initial={{ opacity: 0, scale: 0 }}
-              animate={{ 
-                opacity: 0.18, 
-                scale: 1,
-                y: [0, -15, 0],
-                rotate: [0, 8, -8, 0]
-              }}
-              transition={{
-                y: { duration: 5, repeat: Infinity, ease: "easeInOut" },
-                rotate: { duration: 7, repeat: Infinity, ease: "easeInOut" },
-                default: { duration: 1, delay: 0.8 }
-              }}
-              className="absolute left-[8%] top-[15%] hidden md:block"
-            >
-              <svg viewBox="0 0 24 24" fill="none" className="w-12 h-12 text-red-500 stroke-2 stroke-current">
-                <path d="M12 2C11.5 3 10.5 4.5 9 5C7.5 5.5 6.5 5 6 5C6.5 6.5 8 8 9 9C10 10 10.5 12 10.5 13.5C10.5 16 8.5 18 6 18C7.5 19.5 9.5 20.5 12 20.5C16.5 20.5 20 17 20 12.5C20 8.5 17 5 12 2Z" fill="currentColor" fillOpacity="0.2"/>
-              </svg>
-            </motion.div>
-
-            {/* Basil Leaf 🌿 */}
-            <motion.div
-              initial={{ opacity: 0, scale: 0 }}
-              animate={{ 
-                opacity: 0.15, 
-                scale: 1,
-                y: [0, 12, 0],
-                rotate: [0, -10, 10, 0]
-              }}
-              transition={{
-                y: { duration: 4.5, repeat: Infinity, ease: "easeInOut" },
-                rotate: { duration: 6, repeat: Infinity, ease: "easeInOut" },
-                default: { duration: 1, delay: 1 }
-              }}
-              className="absolute left-[40%] bottom-[12%] hidden md:block"
-            >
-              <svg viewBox="0 0 24 24" fill="none" className="w-10 h-10 text-green-500 stroke-2 stroke-current">
-                <path d="M2 22C2 22 8 20 12 16C16 12 22 2 22 2C22 2 12 8 8 12C4 16 2 22 2 22Z" fill="currentColor" fillOpacity="0.2"/>
-                <path d="M2 22C6 18 12 16 16 12" />
-              </svg>
-            </motion.div>
-
-            {/* Lemon Slice 🍋 */}
-            <motion.div
-              initial={{ opacity: 0, scale: 0 }}
-              animate={{ 
-                opacity: 0.16, 
-                scale: 1,
-                y: [0, -10, 0],
-                rotate: [0, 12, -12, 0]
-              }}
-              transition={{
-                y: { duration: 5.5, repeat: Infinity, ease: "easeInOut" },
-                rotate: { duration: 8, repeat: Infinity, ease: "easeInOut" },
-                default: { duration: 1, delay: 0.9 }
-              }}
-              className="absolute right-[45%] top-[8%] hidden md:block"
-            >
-              <svg viewBox="0 0 24 24" fill="none" className="w-11 h-11 text-yellow-500 stroke-2 stroke-current">
-                <circle cx="12" cy="12" r="10" fill="currentColor" fillOpacity="0.15" />
-                <circle cx="12" cy="12" r="8" strokeDasharray="3 2" />
-                <path d="M12 4V20M4 12H20M6.34 6.34L17.66 17.66M6.34 17.66L17.66 6.34" />
-              </svg>
-            </motion.div>
-          </div>
-
-          <div className="container mx-auto px-4 max-w-[1400px] flex flex-col md:flex-row items-stretch justify-between relative z-10">
-            {/* Left side: Text Content Staggered Entrance */}
-            <div className="w-full md:w-1/2 flex flex-col justify-center items-start py-12 md:py-20 lg:py-24 z-20 md:pr-8">
-              {isAuthenticated && (
-                <motion.span 
-                  initial={{ opacity: 0, y: -10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.5, delay: 0.1 }}
-                  className="inline-block bg-white px-4 py-1.5 rounded-full text-xs font-bold text-gray-900 mb-6 shadow-sm border border-gray-100"
-                >
-                  Welcome back, {user?.name.split(" ")[0]} 👋
-                </motion.span>
-              )}
-              
-              <motion.span 
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.5, delay: 0.2 }}
-                className="inline-flex items-center gap-1.5 bg-[#E63946] text-white px-3.5 py-1.5 rounded-full text-[10px] font-black tracking-widest uppercase mb-5 shadow-xs"
-              >
-                <Star className="w-3.5 h-3.5 fill-white text-white" /> Premium Abuja Smokehouse
-              </motion.span>
-              
-              {/* Kinetic Typography Mask-Up */}
-              <h1 className="text-4xl sm:text-5xl lg:text-[4.2rem] font-black mb-6 leading-[1.08] tracking-tight text-[#1E1E1E]">
-                <span className="block overflow-hidden pb-1">
-                  <motion.span 
-                    initial={{ y: "105%" }}
-                    animate={{ y: 0 }}
-                    transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1], delay: 0.25 }}
-                    className="block"
-                  >
-                    Traditional Taste.
-                  </motion.span>
+        {/* SECTION 1: HERO */}
+        <section className="relative bg-[#FAF8F5] border-b border-gray-100 overflow-hidden">
+          <div className="container mx-auto px-4 max-w-[1400px] py-12 md:py-20 lg:py-24">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12 items-center">
+              <div className="lg:col-span-7 flex flex-col items-start z-10">
+                <span className="inline-flex items-center gap-2 bg-red-50 text-[var(--color-primary)] border border-red-100 px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-widest mb-6">
+                  <Sparkles className="w-3.5 h-3.5" />
+                  Abuja&apos;s Premier Farm-to-Table Kitchen
                 </span>
-                <span className="block overflow-hidden pb-1">
-                  <motion.span 
-                    initial={{ y: "105%" }}
-                    animate={{ y: 0 }}
-                    transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1], delay: 0.4 }}
-                    className="block text-[var(--color-primary)]"
-                  >
-                    Gourmet Standards.
-                  </motion.span>
-                </span>
-              </h1>
 
-              <motion.p 
-                initial={{ opacity: 0, y: 15 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, ease: "easeOut", delay: 0.55 }}
-                className="text-base sm:text-lg font-semibold text-gray-600 mb-8 max-w-md leading-relaxed"
-              >
-                Experience Abuja’s finest farm-sourced, hygienically smoked Dried Mangala and premium grilled delicacies delivered fresh.
-              </motion.p>
-              
-              {/* Premium Delivery Selector Search Area Staggered */}
-              <motion.div 
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1], delay: 0.7 }}
-                className="w-full max-w-lg bg-white rounded-2xl border border-gray-200 shadow-lg p-2.5 flex flex-col sm:flex-row items-stretch gap-2"
-              >
-                <div className="flex-grow flex items-center gap-3 px-3 py-2 bg-gray-50 rounded-xl">
-                  <MapPin className="w-5 h-5 text-[var(--color-primary)] shrink-0" />
-                  <div className="text-left">
-                    <span className="block text-[8px] font-black text-gray-400 uppercase tracking-widest leading-none mb-0.5">Delivering to</span>
-                    <span className="text-xs font-bold text-gray-800">Wuse II, Maitama, Asokoro, Jabi</span>
+                <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black tracking-tight text-gray-900 leading-[1.08] mb-6">
+                  Fresh Farm-to-Table{" "}
+                  <span className="text-[var(--color-primary)]">Fish Meals</span>,
+                  Grilled &amp; Smoked Daily.
+                </h1>
+
+                <p className="text-base sm:text-lg text-gray-600 font-medium leading-relaxed max-w-2xl mb-8">
+                  Harvested fresh from our own fish farm, seasoned with authentic
+                  Abuja spices, and flame-grilled to order. Experience traceable,
+                  hygienic gourmet fish meals delivered hot to your table or doorstep.
+                </p>
+
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 w-full sm:w-auto">
+                  <Link
+                    href="/home"
+                    className="px-8 py-4 rounded-2xl bg-[var(--color-primary)] text-white font-black text-base sm:text-lg flex items-center justify-center gap-3 hover:bg-red-700 transition-all shadow-lg shadow-red-900/20 active:scale-[0.98]"
+                  >
+                    <span>{isAuthenticated ? "Continue to Menu" : "Order Now"}</span>
+                    <ArrowRight className="w-5 h-5" />
+                  </Link>
+
+                  {!isAuthenticated ? (
+                    <Link
+                      href="/login"
+                      className="px-7 py-4 rounded-2xl bg-white text-gray-900 font-bold text-base border-2 border-gray-200 hover:border-gray-300 hover:bg-gray-50 transition-all flex items-center justify-center gap-3 shadow-xs active:scale-[0.98]"
+                    >
+                      <svg className="w-5 h-5" viewBox="0 0 24 24">
+                        <path
+                          fill="#EA4335"
+                          d="M12 5c1.6 0 3 .6 4.1 1.7l3.1-3.1C17.3 1.8 14.8 1 12 1 7.4 1 3.5 3.6 1.6 7.4l3.7 2.8C6.2 7.2 8.9 5 12 5z"
+                        />
+                        <path
+                          fill="#4285F4"
+                          d="M23.5 12.3c0-.8-.1-1.6-.2-2.3H12v4.5h6.5c-.3 1.5-1.1 2.8-2.4 3.6l3.7 2.9c2.2-2 3.7-5 3.7-8.7z"
+                        />
+                        <path
+                          fill="#FBBC05"
+                          d="M5.3 14.8c-.2-.8-.4-1.6-.4-2.5s.2-1.7.4-2.5L1.6 7C.6 9 0 11.2 0 12.3s.6 3.3 1.6 5.3l3.7-2.8z"
+                        />
+                        <path
+                          fill="#34A853"
+                          d="M12 23c3.2 0 6-1.1 8-3l-3.7-2.9c-1.1.7-2.5 1.2-4.3 1.2-3.1 0-5.8-2.1-6.7-5L1.6 16c1.9 3.9 5.8 7 10.4 7z"
+                        />
+                      </svg>
+                      <span>Sign in with Google</span>
+                    </Link>
+                  ) : (
+                    <Link
+                      href="/menu"
+                      className="px-7 py-4 rounded-2xl bg-white text-gray-900 font-bold text-base border-2 border-gray-200 hover:border-gray-300 hover:bg-gray-50 transition-all flex items-center justify-center gap-2 shadow-xs"
+                    >
+                      <span>Browse Full Menu</span>
+                    </Link>
+                  )}
+                </div>
+
+                {isAuthenticated && user && (
+                  <p className="mt-4 text-xs font-bold text-gray-500">
+                    Signed in as <span className="text-gray-900">{user.name}</span> •{" "}
+                    <Link href="/orders" className="text-[var(--color-primary)] hover:underline">
+                      View My Orders
+                    </Link>
+                  </p>
+                )}
+              </div>
+
+              <div className="lg:col-span-5">
+                <div className="relative aspect-[4/3] sm:aspect-square rounded-[2rem] overflow-hidden shadow-2xl border-4 border-white bg-gray-100">
+                  <Image
+                    src="/croaker-dish.jpg"
+                    alt="Fresh Farm-to-Table Grilled Croaker Fish"
+                    fill
+                    priority
+                    sizes="(max-width: 1024px) 100vw, 45vw"
+                    className="object-cover"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+                  <div className="absolute bottom-5 left-5 right-5 bg-white/95 backdrop-blur-md p-4 rounded-2xl shadow-lg flex items-center justify-between">
+                    <div>
+                      <span className="text-[10px] font-black uppercase tracking-widest text-[var(--color-primary)] block">
+                        Chef&apos;s Signature
+                      </span>
+                      <p className="font-black text-gray-900 text-sm sm:text-base">
+                        Flame-Grilled Croaker &amp; Spicy Mangala
+                      </p>
+                    </div>
+                    <span className="bg-green-50 text-green-700 text-xs font-black px-3 py-1.5 rounded-full border border-green-200 shrink-0">
+                      100% Farm Fresh
+                    </span>
                   </div>
                 </div>
-                <Link href="#storefront" className="bg-gray-900 text-white px-8 py-3.5 rounded-xl font-bold text-sm shadow-md hover:bg-black transition-all active:scale-95 text-center flex items-center justify-center shrink-0">
-                  Order Now
-                </Link>
-              </motion.div>
+              </div>
             </div>
-            
-            {/* Right side: Premium Image Display with 3% Scale-up Entrance */}
-            <div className="relative w-full md:w-1/2 min-h-[300px] sm:min-h-[360px] md:min-h-full aspect-[4/3] sm:aspect-video md:aspect-auto z-0 opacity-90 md:opacity-100 shrink-0">
-               {/* Mask gradients to seamlessly fade the image background into the hero color */}
-               <div className="absolute inset-0 bg-gradient-to-r from-[#FAF8F5] via-[#FAF8F5]/90 to-transparent z-10 hidden md:block" />
-               <div className="absolute inset-0 bg-gradient-to-b from-[#FAF8F5] via-[#FAF8F5]/30 to-transparent z-10 md:hidden" />
-               <motion.div
-                 initial={{ opacity: 0, scale: 0.97 }}
-                 animate={{ opacity: 1, scale: 1.0 }}
-                 transition={{ duration: 1.1, ease: [0.16, 1, 0.3, 1], delay: 0.45 }}
-                 className="absolute inset-0 overflow-hidden md:rounded-l-[2rem]"
-               >
-                 <Image 
-                   src="/croaker-dish.jpg" 
-                   alt="Premium Smoked Delicacy"
-                   fill
-                   className="object-cover object-center transition-all duration-[6000ms] hover:scale-103"
-                   priority
-                 />
-               </motion.div>
-            </div>
-          </div>
-        </div>
-
-        {/* Categories Carousel */}
-        <section className="container mx-auto max-w-[1400px] mt-12 mb-8">
-          <div className="flex gap-3 overflow-x-auto pb-6 pt-1 px-4 snap-x hide-scrollbar">
-            {CATEGORIES.map(cat => (
-              <button
-                key={cat.name}
-                onClick={() => handleCategoryChange(cat.name)}
-                className={`flex items-center gap-2.5 px-5 py-3 rounded-full font-bold whitespace-nowrap transition-all duration-300 snap-center shrink-0 ${
-                  activeCategory === cat.name 
-                    ? "bg-[var(--color-primary)] text-white shadow-[0_4px_15px_rgba(230,57,70,0.3)] scale-100" 
-                    : "bg-gray-100 text-gray-700 hover:bg-gray-200 border-none scale-100 active:scale-95"
-                }`}
-              >
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-lg shadow-xs ${activeCategory === cat.name ? 'bg-white/20' : 'bg-white'}`}>
-                  {cat.icon}
-                </div>
-                <span>{cat.name}</span>
-              </button>
-            ))}
           </div>
         </section>
 
-        {/* Dynamic Category List */}
-        <section className="container mx-auto px-4 max-w-[1400px] mb-16" id="storefront">
-          <div className="mb-8 flex items-center justify-between">
-            <h2 className="text-2xl font-black text-gray-900 tracking-tight">
-              {activeCategory === "All" ? "Popular Right Now in Abuja" : `${activeCategory} Specialties`}
-            </h2>
-          </div>
+        {/* SECTION 2: HOW IT WORKS IN 3 STEPS */}
+        <section className="py-16 md:py-20 bg-white border-b border-gray-100">
+          <div className="container mx-auto px-4 max-w-[1400px]">
+            <div className="text-center max-w-2xl mx-auto mb-12">
+              <span className="text-[11px] font-black uppercase tracking-widest text-[var(--color-primary)] bg-red-50 px-4 py-1.5 rounded-full">
+                Simple &amp; Fast
+              </span>
+              <h2 className="text-3xl sm:text-4xl font-black text-gray-900 mt-4 tracking-tight">
+                How It Works in 3 Easy Steps
+              </h2>
+              <p className="text-gray-500 font-medium mt-2 text-sm sm:text-base">
+                From our pond and smokehouse to your plate in minutes.
+              </p>
+            </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 sm:gap-x-8 sm:gap-y-10">
-            {isMenuLoading ? (
-              Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="bg-white rounded-[1.5rem] p-3 border border-gray-100 flex flex-col h-full">
-                  <div className="relative h-48 sm:h-56 lg:h-48 xl:h-56 w-full rounded-[1.5rem] overflow-hidden mb-4 animate-shimmer" />
-                  <div className="px-1 space-y-3 flex-grow pb-2">
-                    <div className="h-5 w-2/3 rounded-md animate-shimmer" />
-                    <div className="h-4 w-5/6 rounded-md animate-shimmer" />
-                    <div className="h-5 w-1/3 rounded-md animate-shimmer mt-2" />
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8">
+              {[
+                {
+                  step: "01",
+                  title: "Scan or Visit",
+                  desc: "Scan the QR code at your restaurant table or visit Febniks Kitchen online from anywhere in Abuja.",
+                  icon: QrCode,
+                },
+                {
+                  step: "02",
+                  title: "Choose Your Meal",
+                  desc: "Pick from our fresh grilled fish, aromatic catfish pepper soup, smoked Mangala platters, and sides.",
+                  icon: UtensilsCrossed,
+                },
+                {
+                  step: "03",
+                  title: "We Prepare & Deliver",
+                  desc: "Our chefs prepare your meal fresh to order and bring it straight to your table or doorstep.",
+                  icon: Bike,
+                },
+              ].map((item) => (
+                <div
+                  key={item.step}
+                  className="bg-[#FCFAF6] p-8 rounded-3xl border border-gray-100 hover:border-red-100 hover:shadow-lg transition-all flex flex-col items-start"
+                >
+                  <div className="w-full flex items-center justify-between mb-6">
+                    <div className="w-14 h-14 rounded-2xl bg-red-50 text-[var(--color-primary)] flex items-center justify-center">
+                      <item.icon className="w-7 h-7" />
+                    </div>
+                    <span className="text-3xl font-black text-gray-200">{item.step}</span>
                   </div>
+                  <h3 className="text-xl font-black text-gray-900 mb-2">{item.title}</h3>
+                  <p className="text-sm text-gray-600 font-medium leading-relaxed">
+                    {item.desc}
+                  </p>
                 </div>
-              ))
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* SECTION 3: FEATURED MEALS (FROM SUPABASE is_featured = true) */}
+        <section className="py-16 md:py-20 bg-[#FCFAF6] border-b border-gray-100">
+          <div className="container mx-auto px-4 max-w-[1400px]">
+            <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-10 gap-4">
+              <div>
+                <span className="text-[11px] font-black uppercase tracking-widest text-[var(--color-primary)] bg-red-50 px-4 py-1.5 rounded-full">
+                  Chef&apos;s Picks
+                </span>
+                <h2 className="text-3xl sm:text-4xl font-black text-gray-900 mt-4 tracking-tight">
+                  Featured Meals
+                </h2>
+                <p className="text-gray-500 font-medium mt-1 text-sm sm:text-base">
+                  Customer favorites prepared fresh from our farm harvest.
+                </p>
+              </div>
+              <Link
+                href="/menu"
+                className="inline-flex items-center gap-2 text-sm font-black text-[var(--color-primary)] hover:text-red-700 bg-white px-5 py-3 rounded-full border border-gray-200 shadow-xs self-start sm:self-auto"
+              >
+                <span>Explore Full Menu</span>
+                <ArrowRight className="w-4 h-4" />
+              </Link>
+            </div>
+
+            {isLoadingMeals ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <div
+                    key={i}
+                    className="bg-white rounded-[1.5rem] p-3 border border-gray-100 flex flex-col h-full"
+                  >
+                    <div className="h-48 sm:h-52 w-full rounded-[1.25rem] mb-4 animate-shimmer" />
+                    <div className="px-1.5 space-y-3 pb-2">
+                      <div className="h-5 w-2/3 rounded-md animate-shimmer" />
+                      <div className="h-4 w-5/6 rounded-md animate-shimmer" />
+                      <div className="h-5 w-1/3 rounded-md animate-shimmer mt-2" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : mealsError ? (
+              <div className="bg-white rounded-3xl p-8 border border-red-100 text-center max-w-xl mx-auto">
+                <AlertCircle className="w-10 h-10 text-red-500 mx-auto mb-3" />
+                <h3 className="text-lg font-black text-gray-900 mb-1">
+                  Could not load featured meals
+                </h3>
+                <p className="text-sm text-gray-500 mb-5">{mealsError}</p>
+                <button
+                  type="button"
+                  onClick={loadFeatured}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[var(--color-primary)] text-white text-sm font-bold hover:bg-red-700 transition-colors"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                  Try Again
+                </button>
+              </div>
+            ) : featuredMeals.length === 0 ? (
+              <div className="bg-white rounded-3xl p-10 border border-gray-100 text-center max-w-xl mx-auto shadow-xs">
+                <div className="w-14 h-14 rounded-2xl bg-red-50 text-[var(--color-primary)] flex items-center justify-center mx-auto mb-4">
+                  <Fish className="w-7 h-7" />
+                </div>
+                <h3 className="text-xl font-black text-gray-900 mb-2">
+                  No meals yet
+                </h3>
+                <p className="text-sm text-gray-500 font-medium mb-6">
+                  Our chefs are updating today&apos;s featured specials. Head to the ordering
+                  homepage or full menu to browse all categories.
+                </p>
+                <div className="flex flex-wrap justify-center gap-3">
+                  <Link
+                    href="/home"
+                    className="px-6 py-3 rounded-xl bg-[var(--color-primary)] text-white text-sm font-bold hover:bg-red-700 transition-all"
+                  >
+                    Go to Ordering Home
+                  </Link>
+                  <Link
+                    href="/menu"
+                    className="px-6 py-3 rounded-xl bg-gray-100 text-gray-800 text-sm font-bold hover:bg-gray-200 transition-all"
+                  >
+                    Open Full Menu
+                  </Link>
+                </div>
+              </div>
             ) : (
-              filteredItems.map((item) => (
-                <FoodCard 
-                  key={item.id}
-                  id={item.id}
-                  name={item.name}
-                  description={item.description}
-                  price={item.price}
-                  image={item.image}
-                  onClick={() => setSelectedItem(item)}
-                  onAdd={(e) => {
-                    if (e) {
-                      triggerFlyToCart(item.image, e.clientX, e.clientY);
-                    }
-                    addToCart({ id: item.id, name: item.name, price: item.price, image: item.image, description: item.description });
-                    toast.success(`Added ${item.name} to order.`);
-                  }}
-                />
-              ))
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                {featuredMeals.map((meal) => {
+                  const foodItem = toFoodItem(meal);
+                  return (
+                    <FoodCard
+                      key={meal.id}
+                      id={meal.id}
+                      slug={meal.slug}
+                      name={meal.name}
+                      description={meal.description}
+                      price={Number(meal.price || 0)}
+                      image={meal.image_url}
+                      badge={meal.categories?.name || "Featured"}
+                      onClick={() => setSelectedItem(foodItem)}
+                      onAdd={(e) => {
+                        if (e) {
+                          triggerFlyToCart(foodItem.image, e.clientX, e.clientY);
+                        }
+                        addToCart({
+                          id: foodItem.id,
+                          name: foodItem.name,
+                          price: foodItem.price,
+                          image: foodItem.image,
+                          description: foodItem.description,
+                        });
+                        toast.success(`Added ${foodItem.name} to cart.`);
+                      }}
+                    />
+                  );
+                })}
+              </div>
             )}
           </div>
         </section>
 
-        {/* 2. Scroll-Driven "Deconstructed" Gourmet Mangala Platter Assembly */}
-        <DeconstructedMangala />
-
-        {/* Dynamic Story Narrative - Abuja Roots, International Standards */}
-        <section className="bg-white border-y border-gray-100 py-20 px-4 mb-20">
-          <div className="container mx-auto max-w-[1200px]">
-            <div className="text-center max-w-2xl mx-auto mb-16">
-              <span className="text-[11px] font-black uppercase tracking-widest text-[var(--color-primary)] bg-red-50 px-4 py-1.5 rounded-full">Our Heritage Journey</span>
-              <h2 className="text-3xl sm:text-4xl font-black text-gray-900 mt-5 tracking-tight leading-tight">Abuja Roots, World-Class Standards</h2>
-              <p className="text-sm font-semibold text-gray-500 mt-3">Discover the meticulous steps behind every single gourmet dish we deliver.</p>
+        {/* SECTION 4: WHY FEBNIKS */}
+        <section className="py-16 md:py-20 bg-white border-b border-gray-100">
+          <div className="container mx-auto px-4 max-w-[1400px]">
+            <div className="text-center max-w-2xl mx-auto mb-12">
+              <span className="text-[11px] font-black uppercase tracking-widest text-[var(--color-primary)] bg-red-50 px-4 py-1.5 rounded-full">
+                The Febniks Promise
+              </span>
+              <h2 className="text-3xl sm:text-4xl font-black text-gray-900 mt-4 tracking-tight">
+                Why Diners Trust FEBNIKS KITCHEN
+              </h2>
+              <p className="text-gray-500 font-medium mt-2 text-sm sm:text-base">
+                Uncompromising quality from our own ponds straight to your plate.
+              </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-              {/* Step 1 */}
-              <div className="group flex flex-col items-center text-center">
-                <div className="relative w-full aspect-video rounded-3xl overflow-hidden shadow-md border border-gray-100 mb-6 group-hover:shadow-xl transition-all duration-300">
-                  <Image src="/founder-market.jpg" alt="Traditional Sourcing" fill className="object-cover group-hover:scale-105 transition-transform duration-500" />
-                  <div className="absolute top-4 left-4 bg-gray-900 text-white w-8 h-8 rounded-full font-black text-sm flex items-center justify-center shadow-md">1</div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8">
+              <div className="p-8 rounded-3xl bg-[#FCFAF6] border border-gray-100">
+                <div className="w-12 h-12 rounded-2xl bg-red-50 text-[var(--color-primary)] flex items-center justify-center mb-5">
+                  <Fish className="w-6 h-6" />
                 </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-2">Authentic Abuja Sourcing</h3>
-                <p className="text-xs text-gray-500 font-medium max-w-xs leading-relaxed">
-                  We source our fresh raw fish directly from local, trusted Abuja markets, supporting local vendors and ensuring high-quality authentic inputs.
+                <h3 className="text-xl font-black text-gray-900 mb-2">
+                  Fresh From Our Own Farm
+                </h3>
+                <p className="text-sm text-gray-600 font-medium leading-relaxed">
+                  We raise and harvest our fish directly from our own farm in Abuja,
+                  ensuring peak freshness, clean water standards, and rich natural flavor.
                 </p>
               </div>
 
-              {/* Step 2 */}
-              <div className="group flex flex-col items-center text-center">
-                <div className="relative w-full aspect-video rounded-3xl overflow-hidden shadow-md border border-gray-100 mb-6 group-hover:shadow-xl transition-all duration-300">
-                  <Image src="/mangala-pack.jpg" alt="Premium Smokehouse Processing" fill className="object-cover group-hover:scale-105 transition-transform duration-500" />
-                  <div className="absolute top-4 left-4 bg-gray-900 text-white w-8 h-8 rounded-full font-black text-sm flex items-center justify-center shadow-md">2</div>
+              <div className="p-8 rounded-3xl bg-[#FCFAF6] border border-gray-100">
+                <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mb-5">
+                  <ShieldCheck className="w-6 h-6" />
                 </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-2">Modern Hygienic Packaging</h3>
-                <p className="text-xs text-gray-500 font-medium max-w-xs leading-relaxed">
-                  Smoked in modern, certified smokehouses and vacuum-sealed for absolute freshness, Febniks Dried Mangala is packaged with full quality assurance.
+                <h3 className="text-xl font-black text-gray-900 mb-2">
+                  100% Traceable &amp; Hygienic
+                </h3>
+                <p className="text-sm text-gray-600 font-medium leading-relaxed">
+                  Every single fish meal is traceable from harvest to our modern,
+                  dust-free smokehouse and kitchen—prepared under strict food-safety standards.
                 </p>
               </div>
 
-              {/* Step 3 */}
-              <div className="group flex flex-col items-center text-center">
-                <div className="relative w-full aspect-video rounded-3xl overflow-hidden shadow-md border border-gray-100 mb-6 group-hover:shadow-xl transition-all duration-300">
-                  <Image src="/spicy-dish-watermark.jpg" alt="Premium Plated Masterpiece" fill className="object-cover group-hover:scale-105 transition-transform duration-500" />
-                  <div className="absolute top-4 left-4 bg-gray-900 text-white w-8 h-8 rounded-full font-black text-sm flex items-center justify-center shadow-md">3</div>
+              <div className="p-8 rounded-3xl bg-[#FCFAF6] border border-gray-100">
+                <div className="w-12 h-12 rounded-2xl bg-green-50 text-green-600 flex items-center justify-center mb-5">
+                  <Lock className="w-6 h-6" />
                 </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-2">Gourmet Culinary Artistry</h3>
-                <p className="text-xs text-gray-500 font-medium max-w-xs leading-relaxed">
-                  Our professional chefs transform raw smoked fish into stunning, spicy gourmet platters delivered hot to your location.
+                <h3 className="text-xl font-black text-gray-900 mb-2">
+                  Pay Securely &amp; Easily
+                </h3>
+                <p className="text-sm text-gray-600 font-medium leading-relaxed">
+                  Checkout in seconds with Paystack-secured card or transfer payments,
+                  or pay conveniently when your meal arrives.
                 </p>
               </div>
             </div>
@@ -433,10 +410,117 @@ export default function Home() {
         </section>
       </main>
 
-      {/* 3. Shared Element Transitions Modal wrapped in AnimatePresence */}
+      {/* SECTION 5: FOOTER */}
+      <footer className="bg-gray-900 text-gray-400 py-14 px-4">
+        <div className="container mx-auto max-w-[1400px]">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-10 pb-10 border-b border-gray-800">
+            <div className="md:col-span-2">
+              <Link href="/" className="text-2xl font-black tracking-tighter text-white inline-block mb-3">
+                FEBNIKS <span className="text-[var(--color-primary)]">KITCHEN</span>
+              </Link>
+              <p className="text-sm text-gray-400 max-w-sm leading-relaxed mb-5">
+                Fresh farm-to-table fish meals, hygienically smoked Mangala, and
+                signature Abuja grills prepared daily.
+              </p>
+              <div className="flex flex-wrap gap-3 text-xs font-bold">
+                <a
+                  href="https://instagram.com"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="px-4 py-2 rounded-full bg-gray-800 text-gray-200 hover:bg-[var(--color-primary)] hover:text-white transition-colors"
+                >
+                  Instagram
+                </a>
+                <a
+                  href="https://x.com"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="px-4 py-2 rounded-full bg-gray-800 text-gray-200 hover:bg-[var(--color-primary)] hover:text-white transition-colors"
+                >
+                  X (Twitter)
+                </a>
+                <a
+                  href="https://wa.me/2348000000000"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="px-4 py-2 rounded-full bg-gray-800 text-gray-200 hover:bg-[var(--color-primary)] hover:text-white transition-colors"
+                >
+                  WhatsApp
+                </a>
+              </div>
+            </div>
+
+            <div>
+              <h4 className="text-white font-black text-sm uppercase tracking-wider mb-4">
+                Quick Links
+              </h4>
+              <ul className="space-y-2.5 text-sm font-medium">
+                <li>
+                  <Link href="/home" className="hover:text-white transition-colors">
+                    Ordering Homepage (/home)
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/menu" className="hover:text-white transition-colors">
+                    Full Menu (/menu)
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/orders" className="hover:text-white transition-colors">
+                    My Orders (/orders)
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/cart" className="hover:text-white transition-colors">
+                    Your Cart (/cart)
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/login" className="hover:text-white transition-colors">
+                    Sign In (/login)
+                  </Link>
+                </li>
+              </ul>
+            </div>
+
+            <div>
+              <h4 className="text-white font-black text-sm uppercase tracking-wider mb-4">
+                Contact Us
+              </h4>
+              <ul className="space-y-3 text-sm font-medium">
+                <li className="flex items-start gap-2.5">
+                  <MapPin className="w-4 h-4 text-[var(--color-primary)] shrink-0 mt-1" />
+                  <span>Wuse II, Abuja, Nigeria</span>
+                </li>
+                <li className="flex items-center gap-2.5">
+                  <Phone className="w-4 h-4 text-[var(--color-primary)] shrink-0" />
+                  <span>+234 800 FEBNIKS</span>
+                </li>
+                <li className="flex items-center gap-2.5">
+                  <Mail className="w-4 h-4 text-[var(--color-primary)] shrink-0" />
+                  <span>hello@febnikskitchen.com</span>
+                </li>
+              </ul>
+            </div>
+          </div>
+
+          <div className="pt-8 flex flex-col sm:flex-row items-center justify-between text-xs text-gray-500 gap-4">
+            <p>&copy; {new Date().getFullYear()} Febniks Kitchen. All rights reserved.</p>
+            <div className="flex gap-6">
+              <Link href="/support" className="hover:text-gray-300">
+                Help &amp; Support
+              </Link>
+              <Link href="/profile" className="hover:text-gray-300">
+                Account
+              </Link>
+            </div>
+          </div>
+        </div>
+      </footer>
+
       <AnimatePresence>
         {selectedItem && (
-          <FoodModal 
+          <FoodModal
             isOpen={true}
             item={selectedItem}
             onClose={() => setSelectedItem(null)}
@@ -444,7 +528,16 @@ export default function Home() {
               if (event) {
                 triggerFlyToCart(item.image, event.clientX, event.clientY);
               }
-              addToCart({ id: item.id, name: item.name, price: item.price, image: item.image, description: item.description }, quantity);
+              addToCart(
+                {
+                  id: item.id,
+                  name: item.name,
+                  price: item.price,
+                  image: item.image,
+                  description: item.description,
+                },
+                quantity
+              );
               toast.success(`Added ${quantity} ${item.name}(s) to order.`);
               setSelectedItem(null);
             }}
@@ -452,32 +545,7 @@ export default function Home() {
         )}
       </AnimatePresence>
 
-      <div className="md:hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-[45]">
-        <button 
-          onClick={() => setIsCartOpen(true)}
-          className="bg-gray-900 text-white px-6 py-3.5 rounded-full shadow-[0_8px_30px_rgb(0,0,0,0.25)] flex items-center justify-center gap-3 active:scale-95 transition-all text-sm font-bold tracking-wide"
-        >
-          <ShoppingCart className="w-5 h-5" />
-          <span>View Order {totalItemsCount > 0 ? `• ${totalItemsCount} Item${totalItemsCount > 1 ? 's' : ''}` : ''}</span>
-        </button>
-      </div>
-
       <CartDrawer isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} />
-
-      <footer className="bg-gray-50 border-t border-gray-100 text-gray-500 py-16 text-center mt-12 px-6">
-        <div className="container mx-auto px-4 max-w-[1400px]">
-          <h3 className="text-3xl font-black text-gray-900 mb-6 tracking-tighter">FEBNIKS <span className="text-[var(--color-primary)]">KITCHEN</span></h3>
-          <ul className="flex flex-wrap justify-center gap-6 font-bold text-sm text-gray-600 mb-8">
-            <li><a href="#" className="hover:text-black">Get Help</a></li>
-            <li><a href="#" className="hover:text-black">Add your restaurant</a></li>
-            <li><a href="#" className="hover:text-black">Sign up to deliver</a></li>
-            <li><a href="#" className="hover:text-black">Terms</a></li>
-          </ul>
-          <div className="text-xs font-semibold pt-8 border-t border-gray-200">
-            &copy; {new Date().getFullYear()} Febniks Kitchen Technologies Inc.
-          </div>
-        </div>
-      </footer>
     </div>
   );
 }

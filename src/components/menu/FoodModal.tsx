@@ -3,8 +3,9 @@ import { X, Minus, Plus, ShoppingBag } from "lucide-react";
 import Image from "next/image";
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { FALLBACK_MEAL_IMAGE, formatNaira, getMealImageUrl } from "@/lib/supabase/meals";
 
-interface FoodItem {
+export interface FoodItem {
   id: string;
   name: string;
   description: string;
@@ -23,6 +24,18 @@ interface FoodModalProps {
 const MotionImage = motion(Image);
 
 const CUSTOMIZATIONS_BY_CATEGORY: Record<string, { name: string; price: number; icon: string }[]> = {
+  "Fish Meals": [
+    { name: "Extra Plantain", price: 1500, icon: "🍌" },
+    { name: "Signature Pepper Sauce", price: 500, icon: "🌶️" },
+    { name: "Boiled Yam Pieces", price: 1200, icon: "🥔" },
+    { name: "Sweet Coleslaw", price: 800, icon: "🥗" },
+  ],
+  Grills: [
+    { name: "Extra Plantain", price: 1500, icon: "🍌" },
+    { name: "Signature Pepper Sauce", price: 500, icon: "🌶️" },
+    { name: "Spicy Potato Fingers", price: 1500, icon: "🥔" },
+    { name: "Sweet Coleslaw", price: 800, icon: "🥗" },
+  ],
   Grilled: [
     { name: "Extra Plantain", price: 1500, icon: "🍌" },
     { name: "Signature Pepper Sauce", price: 500, icon: "🌶️" },
@@ -50,20 +63,22 @@ export function FoodModal({ isOpen, onClose, item, onAdd }: FoodModalProps) {
   const [quantity, setQuantity] = useState(1);
   const [isAdding, setIsAdding] = useState(false);
   const [selectedAddons, setSelectedAddons] = useState<{ name: string; price: number; icon: string }[]>([]);
+  const [imgSrc, setImgSrc] = useState<string>(getMealImageUrl(item?.image));
 
   useEffect(() => {
     if (isOpen) {
       setQuantity(1);
       setIsAdding(false);
       setSelectedAddons([]);
+      setImgSrc(getMealImageUrl(item?.image));
     }
   }, [isOpen, item]);
 
   if (!item) return null;
 
-  const addons = CUSTOMIZATIONS_BY_CATEGORY[item.category] || [];
+  const addons = CUSTOMIZATIONS_BY_CATEGORY[item.category] || CUSTOMIZATIONS_BY_CATEGORY["Fish Meals"] || [];
   const addonPrice = selectedAddons.reduce((sum, a) => sum + a.price, 0);
-  const basePrice = item.price + addonPrice;
+  const basePrice = Number(item.price || 0) + addonPrice;
   const totalPrice = basePrice * quantity;
 
   const handleAdd = (e: React.MouseEvent) => {
@@ -71,14 +86,15 @@ export function FoodModal({ isOpen, onClose, item, onAdd }: FoodModalProps) {
     setTimeout(() => {
       const customizedItem: FoodItem = {
         ...item,
+        image: imgSrc,
         price: basePrice,
-        description: selectedAddons.length > 0 
-          ? `${item.description} (Add-ons: ${selectedAddons.map(a => a.name).join(", ")})` 
+        description: selectedAddons.length > 0
+          ? `${item.description} (Add-ons: ${selectedAddons.map(a => a.name).join(", ")})`
           : item.description
       };
       onAdd(customizedItem, quantity, e);
       onClose();
-    }, 600);
+    }, 400);
   };
 
   const handleToggleAddon = (addon: typeof addons[0]) => {
@@ -93,51 +109,59 @@ export function FoodModal({ isOpen, onClose, item, onAdd }: FoodModalProps) {
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6" aria-modal="true" role="dialog">
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         className="absolute inset-0 bg-gray-900/60 backdrop-blur-[4px]"
         onClick={onClose}
       />
-      
-      <motion.div 
+
+      <motion.div
         initial={{ scale: 0.93, opacity: 0, y: 20 }}
         animate={{ scale: 1, opacity: 1, y: 0 }}
         exit={{ scale: 0.93, opacity: 0, y: 20 }}
         transition={{ type: "spring", stiffness: 300, damping: 25 }}
         className="relative bg-white w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden flex flex-col md:flex-row max-h-[90vh] md:max-h-[85vh] lg:max-h-none overflow-y-auto md:overflow-y-visible z-10"
       >
-        <button 
+        <button
           onClick={onClose}
-          className="absolute top-4 right-4 z-20 bg-white/50 backdrop-blur-[2px] p-2 rounded-full hover:bg-white transition-colors shadow-sm"
+          className="absolute top-4 right-4 z-20 bg-white/80 backdrop-blur-[2px] p-2 rounded-full hover:bg-white transition-colors shadow-sm"
         >
           <X className="w-5 h-5 text-gray-800" />
         </button>
 
         {/* Image transition using layoutId */}
         <div className="relative w-full md:w-1/2 h-64 md:h-auto bg-gray-100 min-h-[220px] overflow-hidden">
-          <MotionImage 
-            src={item.image} 
+          <MotionImage
+            src={imgSrc}
             alt={item.name}
             fill
+            sizes="(max-width: 768px) 100vw, 50vw"
             className="object-cover"
             layoutId={`food-image-${item.id}`}
             priority
+            onError={() => {
+              if (imgSrc !== FALLBACK_MEAL_IMAGE) {
+                setImgSrc(FALLBACK_MEAL_IMAGE);
+              }
+            }}
           />
         </div>
 
         <div className="p-6 md:p-8 flex flex-col w-full md:w-1/2">
           <div className="mb-2">
-            <span className="text-xs font-bold tracking-wider text-[var(--color-primary)] uppercase bg-red-50 px-2.5 py-1 rounded-full">{item.category}</span>
+            <span className="text-xs font-bold tracking-wider text-[var(--color-primary)] uppercase bg-red-50 px-2.5 py-1 rounded-full">
+              {item.category || "Signature"}
+            </span>
           </div>
           <h2 className="text-2xl font-black text-gray-900 mt-2 mb-2 leading-tight">{item.name}</h2>
-          <p className="text-3xl font-black text-[var(--color-primary)] mb-4">₦{totalPrice.toLocaleString()}</p>
-          
+          <p className="text-3xl font-black text-[var(--color-primary)] mb-4">{formatNaira(totalPrice)}</p>
+
           <div className="w-12 h-1 bg-gray-100 rounded-full mb-4"></div>
-          
+
           <p className="text-gray-600 mb-6 leading-relaxed text-sm font-medium">
-            {item.description}
+            {item.description || "Freshly prepared farm-to-table fish meal."}
           </p>
 
           {/* Customization Area */}
@@ -148,13 +172,12 @@ export function FoodModal({ isOpen, onClose, item, onAdd }: FoodModalProps) {
                 {addons.map((addon) => {
                   const isChecked = !!selectedAddons.find((a) => a.name === addon.name);
                   return (
-                    <label 
+                    <label
                       key={addon.name}
-                      className={`flex items-center justify-between p-2.5 border rounded-xl cursor-pointer select-none transition-all duration-200 active:scale-95 ${
-                        isChecked 
-                          ? "border-[var(--color-primary)] bg-red-50/40 text-[var(--color-primary)] font-bold shadow-xs" 
-                          : "border-gray-200 bg-white hover:bg-gray-50 text-gray-700 font-medium"
-                      }`}
+                      className={`flex items-center justify-between p-2.5 border rounded-xl cursor-pointer select-none transition-all duration-200 active:scale-95 ${isChecked
+                        ? "border-[var(--color-primary)] bg-red-50/40 text-[var(--color-primary)] font-bold shadow-xs"
+                        : "border-gray-200 bg-white hover:bg-gray-50 text-gray-700 font-medium"
+                        }`}
                     >
                       <span className="text-xs flex items-center gap-1.5">
                         <span>{addon.icon}</span>
@@ -162,7 +185,7 @@ export function FoodModal({ isOpen, onClose, item, onAdd }: FoodModalProps) {
                       </span>
                       <div className="flex items-center gap-1">
                         <span className="text-[10px] text-gray-400">+₦{addon.price}</span>
-                        <input 
+                        <input
                           type="checkbox"
                           checked={isChecked}
                           onChange={() => handleToggleAddon(addon)}
@@ -174,12 +197,11 @@ export function FoodModal({ isOpen, onClose, item, onAdd }: FoodModalProps) {
                 })}
               </div>
 
-              {/* 4. Selected Custom Add-ons Visualizer (Bouncy Tray) */}
               <div className="flex flex-wrap gap-1.5 min-h-[42px] items-center p-2 bg-gray-50 rounded-2xl border border-gray-100/80 overflow-hidden">
                 <span className="text-[10px] font-black text-gray-400 uppercase tracking-wider ml-1">Added:</span>
                 <AnimatePresence>
                   {selectedAddons.length === 0 && (
-                    <motion.span 
+                    <motion.span
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       exit={{ opacity: 0 }}
@@ -192,15 +214,15 @@ export function FoodModal({ isOpen, onClose, item, onAdd }: FoodModalProps) {
                     <motion.span
                       key={addon.name}
                       initial={{ scale: 0, rotate: -20, opacity: 0 }}
-                      animate={{ 
-                        scale: 1, 
-                        rotate: 0, 
+                      animate={{
+                        scale: 1,
+                        rotate: 0,
                         opacity: 1,
-                        transition: { type: "spring", stiffness: 350, damping: 15 } 
+                        transition: { type: "spring", stiffness: 350, damping: 15 }
                       }}
-                      exit={{ 
-                        scale: 0, 
-                        rotate: 20, 
+                      exit={{
+                        scale: 0,
+                        rotate: 20,
                         opacity: 0,
                         transition: { duration: 0.18 }
                       }}
@@ -219,14 +241,16 @@ export function FoodModal({ isOpen, onClose, item, onAdd }: FoodModalProps) {
             <div className="flex items-center justify-between mb-6">
               <span className="font-semibold text-gray-700">Quantity</span>
               <div className="flex items-center bg-gray-100 rounded-full p-1">
-                <button 
+                <button
+                  type="button"
                   onClick={() => setQuantity(Math.max(1, quantity - 1))}
                   className="w-10 h-10 flex items-center justify-center bg-white rounded-full text-gray-600 hover:text-gray-900 shadow-sm transition-transform active:scale-90"
                 >
                   <Minus className="w-4 h-4" />
                 </button>
                 <span className="w-12 text-center font-bold text-lg">{quantity}</span>
-                <button 
+                <button
+                  type="button"
                   onClick={() => setQuantity(quantity + 1)}
                   className="w-10 h-10 flex items-center justify-center bg-white rounded-full text-gray-600 hover:text-gray-900 shadow-sm transition-transform active:scale-90"
                 >
@@ -235,14 +259,14 @@ export function FoodModal({ isOpen, onClose, item, onAdd }: FoodModalProps) {
               </div>
             </div>
 
-            <button 
+            <button
+              type="button"
               onClick={handleAdd}
               disabled={isAdding}
-              className={`w-full py-4 rounded-xl flex items-center justify-center gap-2 font-bold text-lg transition-all duration-300 ${
-                isAdding 
-                  ? "bg-green-500 text-white scale-[1.02]" 
-                  : "bg-[var(--color-primary)] text-white hover:bg-red-700 hover:shadow-lg hover:shadow-red-900/30 active:scale-95"
-              }`}
+              className={`w-full py-4 rounded-xl flex items-center justify-center gap-2 font-bold text-lg transition-all duration-300 ${isAdding
+                ? "bg-green-500 text-white scale-[1.02]"
+                : "bg-[var(--color-primary)] text-white hover:bg-red-700 hover:shadow-lg hover:shadow-red-900/30 active:scale-95"
+                }`}
             >
               <ShoppingBag className={`w-5 h-5 ${isAdding ? "animate-bounce" : ""}`} />
               {isAdding ? "Added to Cart!" : "Add to Order"}

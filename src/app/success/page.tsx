@@ -30,17 +30,23 @@ export default function SuccessPage() {
 
           <div className="space-y-4">
             <Link 
-              href="/"
+              href="/orders"
               className="w-full py-4 rounded-xl bg-[var(--color-primary)] text-white font-bold text-lg flex items-center justify-center gap-2 hover:bg-red-700 transition-all active:scale-[0.98] shadow-lg shadow-red-900/20"
             >
               Track Order Status
             </Link>
             <Link 
-              href="/"
+              href="/menu"
               className="w-full py-4 rounded-xl bg-gray-100 text-gray-900 font-bold text-lg flex items-center justify-center gap-2 hover:bg-gray-200 transition-all active:scale-[0.98]"
             >
               <ShoppingBag className="w-5 h-5" />
               Back to Menu
+            </Link>
+            <Link 
+              href="/home"
+              className="block text-sm font-bold text-gray-500 hover:text-gray-900 pt-1"
+            >
+              Return to Ordering Homepage (/home)
             </Link>
           </div>
         </div>

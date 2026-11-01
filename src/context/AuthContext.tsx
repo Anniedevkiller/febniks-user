@@ -1,59 +1,199 @@
 "use client";
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import toast from "react-hot-toast";
+import { createClient } from "@/lib/supabase/client";
+import type { User as SupabaseUser } from "@supabase/supabase-js";
 
-interface User {
+export interface UserProfile {
+  id: string;
   name: string;
   email: string;
   phone: string;
+  avatar_url: string | null;
+  role?: string;
 }
 
 interface AuthContextType {
-  user: User | null;
-  login: (userData: User) => void;
-  logout: () => void;
+  user: UserProfile | null;
+  loginWithGoogle: (nextPath?: string) => Promise<{ error: string | null }>;
+  logout: () => Promise<void>;
+  refreshProfile: () => Promise<void>;
   isAuthenticated: boolean;
+  isLoading: boolean;
 }
 
 const AuthContext = createContext<AuthContextType>({
   user: null,
-  login: () => {},
-  logout: () => {},
+  loginWithGoogle: async () => ({ error: null }),
+  logout: async () => {},
+  refreshProfile: async () => {},
   isAuthenticated: false,
+  isLoading: true,
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [isClient, setIsClient] = useState(false);
+  const [user, setUser] = useState<UserProfile | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    setIsClient(true);
-    const savedUser = localStorage.getItem("febniks_user");
-    if (savedUser) {
-      try {
-        setUser(JSON.parse(savedUser));
-      } catch (e) {
-        console.error("Failed to parse user session");
-      }
+  const fetchOrEnsureProfile = useCallback(async (sbUser: SupabaseUser): Promise<UserProfile> => {
+    const supabase = createClient();
+
+    const metaName =
+      sbUser.user_metadata?.full_name ||
+      sbUser.user_metadata?.name ||
+      sbUser.email?.split("@")[0] ||
+      "Diner";
+    const metaAvatar =
+      sbUser.user_metadata?.avatar_url ||
+      sbUser.user_metadata?.picture ||
+      null;
+
+    const { data: profileRow, error } = await supabase
+      .from("profiles")
+      .select("id, full_name, email, phone, avatar_url, role")
+      .eq("id", sbUser.id)
+      .maybeSingle();
+
+    if (!error && profileRow) {
+      return {
+        id: sbUser.id,
+        name: profileRow.full_name || metaName,
+        email: profileRow.email || sbUser.email || "",
+        phone: profileRow.phone || "",
+        avatar_url: profileRow.avatar_url || metaAvatar,
+        role: profileRow.role,
+      };
     }
+
+    // If trigger hasn't populated the row yet, attempt a non-blocking upsert
+    const fallbackProfile = {
+      id: sbUser.id,
+      full_name: metaName,
+      email: sbUser.email || "",
+      avatar_url: metaAvatar,
+    };
+    await supabase.from("profiles").upsert(fallbackProfile, { onConflict: "id" });
+
+    return {
+      id: sbUser.id,
+      name: metaName,
+      email: sbUser.email || "",
+      phone: sbUser.phone || "",
+      avatar_url: metaAvatar,
+    };
   }, []);
 
-  const login = (userData: User) => {
-    setUser(userData);
-    localStorage.setItem("febniks_user", JSON.stringify(userData));
-    toast.success(`Welcome back, ${userData.name}!`);
+  const refreshProfile = useCallback(async () => {
+    const supabase = createClient();
+    const {
+      data: { user: sbUser },
+    } = await supabase.auth.getUser();
+
+    if (sbUser) {
+      const profile = await fetchOrEnsureProfile(sbUser);
+      setUser(profile);
+    } else {
+      setUser(null);
+    }
+  }, [fetchOrEnsureProfile]);
+
+  useEffect(() => {
+    const supabase = createClient();
+    let mounted = true;
+
+    // Clean up any legacy mock localStorage session key
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("febniks_user");
+    }
+
+    const initAuth = async () => {
+      try {
+        const {
+          data: { user: sbUser },
+        } = await supabase.auth.getUser();
+        if (mounted) {
+          if (sbUser) {
+            const profile = await fetchOrEnsureProfile(sbUser);
+            if (mounted) setUser(profile);
+          } else {
+            setUser(null);
+          }
+        }
+      } catch {
+        if (mounted) setUser(null);
+      } finally {
+        if (mounted) setIsLoading(false);
+      }
+    };
+
+    initAuth();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (!mounted) return;
+      if (session?.user) {
+        const profile = await fetchOrEnsureProfile(session.user);
+        if (mounted) {
+          setUser(profile);
+          setIsLoading(false);
+        }
+      } else if (event === "SIGNED_OUT" || !session) {
+        setUser(null);
+        setIsLoading(false);
+      }
+    });
+
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
+  }, [fetchOrEnsureProfile]);
+
+  const loginWithGoogle = async (nextPath = "/home"): Promise<{ error: string | null }> => {
+    try {
+      const supabase = createClient();
+      const safeNext = nextPath.startsWith("/") && !nextPath.startsWith("//") ? nextPath : "/home";
+      const origin =
+        typeof window !== "undefined"
+          ? window.location.origin
+          : process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: `${origin}/auth/callback?next=${encodeURIComponent(safeNext)}`,
+        },
+      });
+
+      if (error) {
+        return { error: error.message };
+      }
+      return { error: null };
+    } catch (err: any) {
+      return { error: err?.message || "Failed to start Google sign-in." };
+    }
   };
 
-  const logout = () => {
+  const logout = async () => {
+    const supabase = createClient();
+    await supabase.auth.signOut();
     setUser(null);
-    localStorage.removeItem("febniks_user");
-    toast.success("Successfully logged out");
+    toast.success("Signed out successfully");
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, isAuthenticated: !!user }}>
-      {/* We only render children once the client is mounted to avoid hydration mismatch with local storage auth state tracking */}
-      {isClient ? children : null}
+    <AuthContext.Provider
+      value={{
+        user,
+        loginWithGoogle,
+        logout,
+        refreshProfile,
+        isAuthenticated: !!user,
+        isLoading,
+      }}
+    >
+      {children}
     </AuthContext.Provider>
   );
 }

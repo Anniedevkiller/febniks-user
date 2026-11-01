@@ -3,6 +3,8 @@ import { X, Minus, Plus, Trash2, ArrowRight } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useCart } from "@/context/CartContext";
+import { useAuth } from "@/context/AuthContext";
+import { formatNaira } from "@/lib/supabase/meals";
 
 interface CartDrawerProps {
   isOpen: boolean;
@@ -11,21 +13,22 @@ interface CartDrawerProps {
 
 export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
   const { items, updateQuantity, removeFromCart, subtotal } = useCart();
+  const { isAuthenticated } = useAuth();
 
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-[100] flex justify-end" aria-modal="true">
-      <div 
+      <div
         className="absolute inset-0 bg-gray-900/40 backdrop-blur-sm transition-opacity animate-in fade-in"
         onClick={onClose}
       />
-      
+
       <div className="relative w-full max-w-md bg-white h-full shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
-        
+
         <div className="flex items-center justify-between p-6 border-b border-gray-100">
           <h2 className="text-xl font-black text-gray-900">Your Cart</h2>
-          <button 
+          <button
             onClick={onClose}
             className="p-2 rounded-full hover:bg-gray-100 transition-colors"
           >
@@ -49,25 +52,25 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
                 <div className="flex flex-col flex-grow py-1">
                   <div className="flex justify-between items-start gap-2">
                     <h3 className="font-bold text-sm text-gray-900 line-clamp-2 leading-tight">{item.name}</h3>
-                    <button 
+                    <button
                       onClick={() => removeFromCart(item.id)}
                       className="text-gray-400 hover:text-red-500 transition-colors p-1 -mr-1 -mt-1 active:scale-90"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
-                  <p className="font-black text-[var(--color-primary)] text-sm mt-1">₦{item.price.toLocaleString()}</p>
-                  
+                  <p className="font-black text-[var(--color-primary)] text-sm mt-1">{formatNaira(item.price)}</p>
+
                   <div className="mt-auto flex items-center justify-between">
                     <div className="flex items-center bg-gray-50 border border-gray-200 rounded-full">
-                      <button 
+                      <button
                         onClick={() => updateQuantity(item.id, item.quantity - 1)}
                         className="w-7 h-7 flex items-center justify-center rounded-full text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-colors"
                       >
                         <Minus className="w-3 h-3" />
                       </button>
                       <span className="w-8 text-center font-bold text-sm">{item.quantity}</span>
-                      <button 
+                      <button
                         onClick={() => updateQuantity(item.id, item.quantity + 1)}
                         className="w-7 h-7 flex items-center justify-center rounded-full text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-colors"
                       >
@@ -85,16 +88,25 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
           <div className="p-6 bg-white border-t border-gray-100 shadow-[0_-10px_40px_rgba(0,0,0,0.05)]">
             <div className="flex justify-between items-center mb-6">
               <span className="text-gray-500 font-semibold">Subtotal</span>
-              <span className="text-2xl font-black text-gray-900">₦{subtotal.toLocaleString()}</span>
+              <span className="text-2xl font-black text-gray-900">{formatNaira(subtotal)}</span>
             </div>
-            <Link 
-              href="/checkout"
-              onClick={onClose}
-              className="w-full py-4 rounded-xl bg-[var(--color-primary)] text-white font-bold text-lg flex items-center justify-center gap-2 hover:bg-red-700 transition-all active:scale-95 shadow-lg shadow-red-900/20"
-            >
-              Checkout
-              <ArrowRight className="w-5 h-5" />
-            </Link>
+            <div className="space-y-2.5">
+              <Link
+                href={isAuthenticated ? "/checkout" : "/login?next=%2Fcheckout"}
+                onClick={onClose}
+                className="w-full py-4 rounded-xl bg-[var(--color-primary)] text-white font-bold text-lg flex items-center justify-center gap-2 hover:bg-red-700 transition-all active:scale-95 shadow-lg shadow-red-900/20"
+              >
+                {isAuthenticated ? "Checkout" : "Sign in to Checkout"}
+                <ArrowRight className="w-5 h-5" />
+              </Link>
+              <Link
+                href="/cart"
+                onClick={onClose}
+                className="w-full py-3 rounded-xl bg-gray-100 text-gray-800 font-bold text-sm flex items-center justify-center hover:bg-gray-200 transition-all"
+              >
+                Open Full Cart (/cart)
+              </Link>
+            </div>
           </div>
         )}
       </div>

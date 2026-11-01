@@ -3,6 +3,7 @@ import { X, Lock, CheckCircle2 } from "lucide-react";
 import { useState, useEffect } from "react";
 import toast from "react-hot-toast";
 import { motion } from "framer-motion";
+import { formatNaira } from "@/lib/supabase/meals";
 
 interface PaymentModalProps {
   isOpen: boolean;
@@ -61,7 +62,7 @@ export function PaymentModal({ isOpen, onClose, amount, email, onSuccess }: Paym
               <Lock className="w-3 h-3 text-white/80" />
               <span className="font-bold text-white/90 text-xs tracking-widest">SECURE CHECKOUT</span>
             </div>
-            <h2 className="text-4xl font-black mb-1 tracking-tight drop-shadow-sm relative z-10">₦{amount.toLocaleString()}</h2>
+            <h2 className="text-4xl font-black mb-1 tracking-tight drop-shadow-sm relative z-10">{formatNaira(amount)}</h2>
             <p className="text-white/80 text-sm font-medium relative z-10">{email || "guest@febniks.com"}</p>
           </div>
         )}
@@ -84,7 +85,7 @@ export function PaymentModal({ isOpen, onClose, amount, email, onSuccess }: Paym
                 </div>
               </div>
               <button type="submit" className="w-full py-4 mt-2 rounded-xl bg-[#0ba4db] text-white font-black tracking-wide hover:bg-[#098bbd] transition-all shadow-lg shadow-[#0ba4db]/20 active:scale-[0.98] flex justify-center items-center">
-                Pay ₦{amount.toLocaleString()}
+                Pay {formatNaira(amount)}
               </button>
             </form>
           )}
