@@ -1,7 +1,7 @@
 "use client";
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import toast from "react-hot-toast";
-import { createClient } from "@/lib/supabase/client";
+import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
 import type { User as SupabaseUser } from "@supabase/supabase-js";
 
 export interface UserProfile {
@@ -84,26 +84,46 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const refreshProfile = useCallback(async () => {
-    const supabase = createClient();
-    const {
-      data: { user: sbUser },
-    } = await supabase.auth.getUser();
+    if (!isSupabaseConfigured()) {
+      setUser(null);
+      return;
+    }
+    try {
+      const supabase = createClient();
+      const {
+        data: { user: sbUser },
+      } = await supabase.auth.getUser();
 
-    if (sbUser) {
-      const profile = await fetchOrEnsureProfile(sbUser);
-      setUser(profile);
-    } else {
+      if (sbUser) {
+        const profile = await fetchOrEnsureProfile(sbUser);
+        setUser(profile);
+      } else {
+        setUser(null);
+      }
+    } catch {
       setUser(null);
     }
   }, [fetchOrEnsureProfile]);
 
   useEffect(() => {
-    const supabase = createClient();
     let mounted = true;
 
     // Clean up any legacy mock localStorage session key
     if (typeof window !== "undefined") {
       localStorage.removeItem("febniks_user");
+    }
+
+    if (!isSupabaseConfigured()) {
+      setIsLoading(false);
+      return;
+    }
+
+    let supabase: ReturnType<typeof createClient>;
+    try {
+      supabase = createClient();
+    } catch {
+      setIsLoading(false);
+      return;
     }
 
     const initAuth = async () => {
@@ -176,8 +196,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const logout = async () => {
-    const supabase = createClient();
-    await supabase.auth.signOut();
+    try {
+      const supabase = createClient();
+      await supabase.auth.signOut();
+    } catch {
+      // Ignore if client is not configured
+    }
     setUser(null);
     toast.success("Signed out successfully");
   };
